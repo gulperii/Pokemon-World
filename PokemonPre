@@ -1,0 +1,126 @@
+:- include(pokemon_data).
+
+indexOf([Element|_], Element, 0):- !.
+indexOf([_|Tail], Element, Index):-
+ indexOf(Tail, Element, Index1),
+  !,
+ Index is Index1+1.
+  
+match([Elem|_],Num,Num,Elem) :-
+    !.
+match([_|Tail],Num,Count,MatchedNumber) :-
+    Count < Num,
+    Count1 is Count+1,
+    match(Tail,Num,Count1,MatchedNumber).
+	
+ member(X, [Y|T]) :- X = Y; member(X, T).
+
+append([X|Y],Z,[X|W]) :- append(Y,Z,W).  
+append([],X,X).
+ 
+ 
+compare([X|Y],Max):- X>=Y -> Max = X; Max=Y.
+
+group_first([], [], []).
+group_first([[X| Xs]| Lists], [X| Tail], [Xs| Tails]) :-
+    group_first(Lists, Tail, Tails).
+
+group([], []).
+group([List| Lists], Groups) :-
+    group(List, Lists, Groups).
+
+group([], _, []).
+group([X| Xs], Lists, [Group| Groups]) :-
+    group_first([[X| Xs]| Lists], Group, Tails),
+    group(Tails, Groups).
+
+%1
+find_pokemon_evolution(PokemonLevel, Pokemon, EvolvedPokemon):-
+pokemon_evolution(Pokemon, NextEvolved, MinRequiredLevel),
+(MinRequiredLevel =< PokemonLevel) -> 
+find_pokemon_evolution(PokemonLevel, NextEvolved, EvolvedPokemon)
+; EvolvedPokemon = Pokemon.
+
+%2
+pokemon_level_stats(PokemonLevel, Pokemon, PokemonHp, PokemonAttack,PokemonDefense) :-
+pokemon_stats(Pokemon,_,Hp,Ap,Dp),
+PokemonHp is Hp + PokemonLevel*2,
+PokemonAttack is Ap + PokemonLevel,
+PokemonDefense is Dp + PokemonLevel.
+
+%3  
+single_type_multiplier(AttackerType, DefenderType, Multiplier):-
+pokemon_types(Pokemon_type_list),
+type_chart_attack(AttackerType, Attackers_list),
+indexOf(Pokemon_type_list, DefenderType,Index),
+match(Attackers_list,Index,0,Multiplier).
+
+%4 
+type_multiplier(AttackerType, DefenderTypeList, Multiplier):-
+length(DefenderTypeList,A),
+(A==1)->
+match(DefenderTypeList,0,0,DefenderType),
+single_type_multiplier(AttackerType,DefenderType,Multiplier);
+match(DefenderTypeList,0,0,Defender1),
+match(DefenderTypeList,1,0,Defender2),
+single_type_multiplier(AttackerType,Defender1,Multiplier1),
+single_type_multiplier(AttackerType,Defender2,Multiplier2),
+Multiplier is Multiplier1 * Multiplier2.
+
+%5
+pokemon_type_multiplier(AttackerPokemon, DefenderPokemon, Multiplier):-
+pokemon_stats(AttackerPokemon,Attackers_list,_,_,_),
+pokemon_stats(DefenderPokemon,Defenders_list,_,_,_),
+findall(Multipliers,(member(AttackerType,Attackers_list),type_multiplier(AttackerType,Defenders_list,Multipliers)),MultipliersList),
+max_list(MultipliersList,Multiplier).
+
+%6
+pokemon_attack(AttackerPokemon,AttackerPokemonLevel,DefenderPokemon,DefenderPokemonLevel,Damage):-
+pokemon_level_stats(AttackerPokemonLevel,AttackerPokemon,_,AttackerPokemonAP,_),
+pokemon_level_stats(DefenderPokemonLevel,DefenderPokemon,_,_,DefenderPokemonDp),
+pokemon_type_multiplier(AttackerPokemon,DefenderPokemon,Multiplier),
+Damage is (0.5 * AttackerPokemonLevel * ( AttackerPokemonAP / DefenderPokemonDp) * Multiplier) + 1.
+
+
+pokemon_fight_in(Pokemon1Hp,Pokemon2Hp,PokemonDamage12,PokemonDamage21,RoundNum):- (Pokemon1Hp =< 0; Pokemon2Hp =< 0) -> RoundNum is 0, !.
+
+pokemon_fight_in(Pokemon1Hp,Pokemon2Hp,PokemonDamage12,PokemonDamage21,RoundNum):- 
+Pokemon1Hpp is Pokemon1Hp - PokemonDamage21, 
+Pokemon2Hpp is Pokemon2Hp - PokemonDamage12, 
+pokemon_fight_in(Pokemon1Hpp ,Pokemon2Hpp,PokemonDamage12,PokemonDamage21,RoundNumm),
+RoundNum is RoundNumm + 1 .
+
+
+%7
+pokemon_fight(Pokemon1, Pokemon1Level, Pokemon2, Pokemon2Level,Pokemon1Hp, Pokemon2Hp,Rounds):-
+pokemon_attack(Pokemon1,Pokemon1Level,Pokemon2,Pokemon2Level,PokemonDamage12),
+pokemon_attack(Pokemon2,Pokemon2Level,Pokemon1,Pokemon1Level,PokemonDamage21),
+pokemon_level_stats(Pokemon1Level,Pokemon1,Pokemon1HP,_,_),
+pokemon_level_stats(Pokemon2Level,Pokemon2,Pokemon2HP,_,_),
+pokemon_fight_in(Pokemon1HP,Pokemon2HP,PokemonDamage12,PokemonDamage21,RoundBegin),
+Rounds = RoundBegin,
+Pokemon1Hp is Pokemon1HP - Rounds * PokemonDamage21,
+Pokemon2Hp is Pokemon2HP - Rounds * PokemonDamage12.
+
+pokemon_fight_winner(RoundList,PokemonTrainer1,PokemonTrainer2,Winner):-
+match(RoundList,0,0,FirstPokemon),
+match(RoundList,2,0,SecondPokemon),
+match(RoundList,1,0,FirstPokemonLevel),
+match(RoundList,3,0,SecondPokemonLevel),
+pokemon_fight(FirstPokemon,FirstPokemonLevel,SecondPokemon,SecondPokemonLevel,Pokemon1Hp,Pokemon2Hp,_),
+(Pokemon1Hp >= Pokemon2Hp ) -> Winner = PokemonTrainer1;
+Winner = PokemonTrainer2 .
+
+
+
+%8 
+pokemon_tournament(PokemonTrainer1, PokemonTrainer2, WinnerTrainerList) :-
+pokemon_trainer(PokemonTrainer1,PokemonTrainer1Pokemons,PokemonTrainer1PokemonsLevels),
+pokemon_trainer(PokemonTrainer2,PokemonTrainer2Pokemons,PokemonTrainer2PokemonsLevels),
+maplist(find_pokemon_evolution,PokemonTrainer1PokemonsLevels,PokemonTrainer1Pokemons,PokemonTrainer1EvolvedPokemons),
+maplist(find_pokemon_evolution,PokemonTrainer2PokemonsLevels,PokemonTrainer2Pokemons,PokemonTrainer2EvolvedPokemons),
+group([PokemonTrainer1EvolvedPokemons,PokemonTrainer1PokemonsLevels,PokemonTrainer2EvolvedPokemons,PokemonTrainer2PokemonsLevels],MergedList),
+findall(Winner,(member(RoundList,MergedList),pokemon_fight_winner(RoundList,PokemonTrainer1,PokemonTrainer2,Winner)),WinnerTrainerList).
+
+
+
