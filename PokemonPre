@@ -1,5 +1,7 @@
 :- include(pokemon_data).
 
+%TÜM FIGHTLO ATTACKLI DAMAGELI ŞEYLERİ KONTROL ET EVOLVE LAZIM MI
+
 indexOf([Element|_], Element, 0):- !.
 indexOf([_|Tail], Element, Index):-
  indexOf(Tail, Element, Index1),
@@ -33,6 +35,9 @@ group([], _, []).
 group([X| Xs], Lists, [Group| Groups]) :-
     group_first([[X| Xs]| Lists], Group, Tails),
     group(Tails, Groups).
+	
+max_list(L, M, I) :- nth0(I, L, M), \+ (member(E, L), E > M).
+
 
 %1
 find_pokemon_evolution(PokemonLevel, Pokemon, EvolvedPokemon):-
@@ -112,6 +117,7 @@ pokemon_fight(FirstPokemon,FirstPokemonLevel,SecondPokemon,SecondPokemonLevel,Po
 Winner = PokemonTrainer2 .
 
 
+
 %8 
 pokemon_tournament(PokemonTrainer1, PokemonTrainer2, WinnerTrainerList) :-
 pokemon_trainer(PokemonTrainer1,PokemonTrainer1Pokemons,PokemonTrainer1PokemonsLevels),
@@ -121,16 +127,38 @@ maplist(find_pokemon_evolution,PokemonTrainer2PokemonsLevels,PokemonTrainer2Poke
 group([PokemonTrainer1EvolvedPokemons,PokemonTrainer1PokemonsLevels,PokemonTrainer2EvolvedPokemons,PokemonTrainer2PokemonsLevels],MergedList),
 findall(Winner,(member(RoundList,MergedList),pokemon_fight_winner(RoundList,PokemonTrainer1,PokemonTrainer2,Winner)),WinnerTrainerList).
 
+
+pokemon_tournament_ne(PokemonTrainer1, PokemonTrainer2, WinnerTrainerList) :-
+pokemon_trainer(PokemonTrainer1,PokemonTrainer1Pokemons,PokemonTrainer1PokemonsLevels),
+pokemon_trainer(PokemonTrainer2,PokemonTrainer2Pokemons,PokemonTrainer2PokemonsLevels),
+group([PokemonTrainer1Pokemons,PokemonTrainer1PokemonsLevels,PokemonTrainer2Pokemons,PokemonTrainer2PokemonsLevels],MergedList),
+findall(Winner,(member(RoundList,MergedList),pokemon_fight_winner(RoundList,PokemonTrainer1,PokemonTrainer2,Winner)),WinnerTrainerList).
+
+
 all_pokemons(PokemonList):-
 findall(Pokemon,pokemon_stats(Pokemon,_,_,_,_),PokemonList).
 
-%9
+%9 EVOLVE EDİUPR
 best_pokemon(EnemyPokemon, LevelCap, RemainingHP, BestPokemon):-
 all_pokemons(PokemonList),
-findall( CandPokemonHp,(member(CandPokemon,PokemonList),pokemon_fight(EnemyPokemon,LevelCap,_,LevelCap,_,CandPokemonHp,_)),HpList),
+find_pokemon_evolution(LevelCap,EnemyPokemon,EvolvedEnemyPokemon),
+findall( CandPokemonHp,(member(CandPokemon,PokemonList),find_pokemon_evolution(LevelCap,CandPokemon,EvolvedCandPokemon),pokemon_fight(EvolvedEnemyPokemon,LevelCap,EvolvedCandPokemon,LevelCap,_,CandPokemonHp,_)),HpList),
 max_list(HpList,MaxHp,MaxIndex),
 RemainingHP = MaxHp,
 match(PokemonList,MaxIndex,0,BestPokemon).
 
-%10
+%10 leveli hardcode yapsak?  // HATALI
+best_pokemon_team(OpponentTrainer, PokemonTeam):-
+pokemon_trainer(OpponentTrainer,OpponentTeam,_),
+findall(BestPokemon,(member(EnemyPokemon,OpponentTeam),best_pokemon(EnemyPokemon,100,_,BestPokemon)),PokemonTeam).
+
+%11
+pokemon_types(TypeList, InitialPokemonList,PokemonList) :-
+findall(Pokemon,(member(Pokemon,InitialPokemonList),pokemon_types_in(TypeList,Pokemon)),PokemonList).
+
+pokemon_types_in([H|TypeListTail],Pokemon):-
+pokemon_stats(Pokemon,PokemonTypeList,_,_,_),
+((member(H,PokemonTypeList),!);
+pokemon_types_in(TypeListTail,Pokemon)).
+
 
