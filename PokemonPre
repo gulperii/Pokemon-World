@@ -112,7 +112,6 @@ pokemon_fight(FirstPokemon,FirstPokemonLevel,SecondPokemon,SecondPokemonLevel,Po
 Winner = PokemonTrainer2 .
 
 
-
 %8 
 pokemon_tournament(PokemonTrainer1, PokemonTrainer2, WinnerTrainerList) :-
 pokemon_trainer(PokemonTrainer1,PokemonTrainer1Pokemons,PokemonTrainer1PokemonsLevels),
@@ -122,5 +121,16 @@ maplist(find_pokemon_evolution,PokemonTrainer2PokemonsLevels,PokemonTrainer2Poke
 group([PokemonTrainer1EvolvedPokemons,PokemonTrainer1PokemonsLevels,PokemonTrainer2EvolvedPokemons,PokemonTrainer2PokemonsLevels],MergedList),
 findall(Winner,(member(RoundList,MergedList),pokemon_fight_winner(RoundList,PokemonTrainer1,PokemonTrainer2,Winner)),WinnerTrainerList).
 
+all_pokemons(PokemonList):-
+findall(Pokemon,pokemon_stats(Pokemon,_,_,_,_),PokemonList).
 
+%9
+best_pokemon(EnemyPokemon, LevelCap, RemainingHP, BestPokemon):-
+all_pokemons(PokemonList),
+findall( CandPokemonHp,(member(CandPokemon,PokemonList),pokemon_fight(EnemyPokemon,LevelCap,_,LevelCap,_,CandPokemonHp,_)),HpList),
+max_list(HpList,MaxHp,MaxIndex),
+RemainingHP = MaxHp,
+match(PokemonList,MaxIndex,0,BestPokemon).
+
+%10
 
