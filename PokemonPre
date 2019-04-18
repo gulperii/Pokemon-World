@@ -1,6 +1,7 @@
 :- include(pokemon_data).
 
 %TÜM FIGHTLO ATTACKLI DAMAGELI ŞEYLERİ KONTROL ET EVOLVE LAZIM MI
+%Predsort aynıları yok ediyor
 
 indexOf([Element|_], Element, 0):- !.
 indexOf([_|Tail], Element, Index):-
@@ -20,8 +21,13 @@ match([_|Tail],Num,Count,MatchedNumber) :-
 append([X|Y],Z,[X|W]) :- append(Y,Z,W).  
 append([],X,X).
  
- 
-compare([X|Y],Max):- X>=Y -> Max = X; Max=Y.
+compareHp(X,  [_,A1,_,_], [_,A2,_,_]) :-  A1=\=A2,!,compare(X, A2, A1).
+compareAp(X,  [_,_,A1,_], [_,_,A2,_]) :- A1=\=A2,!,compare(X, A2, A1).
+compareDp(X,  [_,_,_,A1], [_,_,_,A2]) :- A1=\=A2,!,compare(X, A2, A1).
+compareHp(R,E1,E2) :- compare(R,E2,E1).
+compareAp(R,E1,E2) :- compare(R,E2,E1).
+compareDp(R,E1,E2) :- compare(R,E2,E1).
+
 
 group_first([], [], []).
 group_first([[X| Xs]| Lists], [X| Tail], [Xs| Tails]) :-
@@ -128,29 +134,37 @@ group([PokemonTrainer1EvolvedPokemons,PokemonTrainer1PokemonsLevels,PokemonTrain
 findall(Winner,(member(RoundList,MergedList),pokemon_fight_winner(RoundList,PokemonTrainer1,PokemonTrainer2,Winner)),WinnerTrainerList).
 
 
-pokemon_tournament_ne(PokemonTrainer1, PokemonTrainer2, WinnerTrainerList) :-
-pokemon_trainer(PokemonTrainer1,PokemonTrainer1Pokemons,PokemonTrainer1PokemonsLevels),
-pokemon_trainer(PokemonTrainer2,PokemonTrainer2Pokemons,PokemonTrainer2PokemonsLevels),
-group([PokemonTrainer1Pokemons,PokemonTrainer1PokemonsLevels,PokemonTrainer2Pokemons,PokemonTrainer2PokemonsLevels],MergedList),
-findall(Winner,(member(RoundList,MergedList),pokemon_fight_winner(RoundList,PokemonTrainer1,PokemonTrainer2,Winner)),WinnerTrainerList).
-
-
 all_pokemons(PokemonList):-
 findall(Pokemon,pokemon_stats(Pokemon,_,_,_,_),PokemonList).
 
-%9 EVOLVE EDİUPR
+%9 
 best_pokemon(EnemyPokemon, LevelCap, RemainingHP, BestPokemon):-
 all_pokemons(PokemonList),
-find_pokemon_evolution(LevelCap,EnemyPokemon,EvolvedEnemyPokemon),
-findall( CandPokemonHp,(member(CandPokemon,PokemonList),find_pokemon_evolution(LevelCap,CandPokemon,EvolvedCandPokemon),pokemon_fight(EvolvedEnemyPokemon,LevelCap,EvolvedCandPokemon,LevelCap,_,CandPokemonHp,_)),HpList),
+findall( CandPokemonHp,(member(CandPokemon,PokemonList),pokemon_fight(EnemyPokemon,LevelCap,CandPokemon,LevelCap,_,CandPokemonHp,_)),HpList),
 max_list(HpList,MaxHp,MaxIndex),
 RemainingHP = MaxHp,
 match(PokemonList,MaxIndex,0,BestPokemon).
 
-%10 leveli hardcode yapsak?  // HATALI
+
+
+best_pokemon_evolving(EnemyPokemonwithStats,BestPokemon):-
+all_pokemons(PokemonList),
+match(EnemyPokemonwithStats,0,0,EnemyPokemon),
+match(EnemyPokemonwithStats,1,0,EnemyPokemonLevel),
+find_pokemon_evolution(EnemyPokemonLevel,EnemyPokemon,EvolvedEnemyPokemon),
+findall( CandPokemonHp,(member(CandPokemon,PokemonList),pokemon_fight(EvolvedEnemyPokemon,EnemyPokemonLevel,CandPokemon,EnemyPokemonLevel,_,CandPokemonHp,_)),HpList),
+max_list(HpList,MaxHp,MaxIndex),
+RemainingHP = MaxHp,
+match(PokemonList,MaxIndex,0,BestPokemon).
+
+
+
+
+%10 Evolve eden pokemonu bastırıyot
 best_pokemon_team(OpponentTrainer, PokemonTeam):-
-pokemon_trainer(OpponentTrainer,OpponentTeam,_),
-findall(BestPokemon,(member(EnemyPokemon,OpponentTeam),best_pokemon(EnemyPokemon,100,_,BestPokemon)),PokemonTeam).
+pokemon_trainer(OpponentTrainer,OpponentTeam,OpponentTeamLevels),
+group([OpponentTeam,OpponentTeamLevels],OpponentTeamwithLevels),
+findall(BestPokemon,(member(EnemyPokemon,OpponentTeamwithLevels),best_pokemon_evolving(EnemyPokemon,BestPokemon)),PokemonTeam).
 
 %11
 pokemon_types(TypeList, InitialPokemonList,PokemonList) :-
@@ -161,4 +175,13 @@ pokemon_stats(Pokemon,PokemonTypeList,_,_,_),
 ((member(H,PokemonTypeList),!);
 pokemon_types_in(TypeListTail,Pokemon)).
 
-
+%12 İLK N ELEMET
+generate_pokemon_team(LikedTypes, DislikedTypes, Criterion, Count, FullPokemonTeam):-
+all_pokemons(AllPokemonList),
+pokemon_types(DislikedTypes,AllPokemonList,DislikedPokemons),
+pokemon_types(LikedTypes,AllPokemonList,LikedPokemons),
+subtract(LikedPokemons,DislikedPokemons,JustLikedPokemons),
+findall([Pokemon,Hp,Ap,Dp],(member(Pokemon,JustLikedPokemons),pokemon_stats(Pokemon,_,Hp,Ap,Dp)),JustLikedPokemonStats),
+(Criterion = h) -> predsort(compareHp,JustLikedPokemonStats,FullPokemonTeam);
+(Criterion = a) ->predsort(compareAp,JustLikedPokemonStats,FullPokemonTeam);
+ (Criterion = d) -> predsort(compareDp,JustLikedPokemonStats,FullPokemonTeam).
